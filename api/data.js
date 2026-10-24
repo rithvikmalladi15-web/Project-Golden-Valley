@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     const r = await fetch("https://groq.com", {
       method: "POST",
       headers: { 
-        "Authorization": "Bearer " + process.env.GROQ_API_KEY, 
+        "Authorization": "Bearer " + process.env.GROQ_API_KEY.trim(), 
         "Content-Type": "application/json" 
       },
       body: JSON.stringify({ 
@@ -42,10 +42,14 @@ export default async function handler(req, res) {
     });
     
     const d = await r.json();
-    const text = d?.choices?.[0]?.message?.content || "No results found.";
     
-    return res.status(200).json({ reply: text.trim() });
+    // Completely safe layout evaluation
+    if (d && d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content) {
+      return res.status(200).json({ reply: d.choices[0].message.content.trim() });
+    }
+    
+    return res.status(200).json({ reply: "No valid choice arrays returned from Groq." });
   } catch (e) {
-    return res.status(502).json({ error: "Upstream API error" });
+    return res.status(502).json({ reply: "Server catch block intercepted a failure." });
   }
 }

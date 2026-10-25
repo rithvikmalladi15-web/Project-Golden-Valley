@@ -3,7 +3,7 @@ Talk like a warm, practical person: short sentences, plain words, no markdown, 1
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
-  if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "Gemini Key Not configured" });
+  if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "GEMINI_API_KEY variable is missing in Vercel." });
   
   const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
   const msgs = (Array.isArray(body.messages) ? body.messages : [])
@@ -18,6 +18,9 @@ export default async function handler(req, res) {
       parts: [{ text: m.content }]
     }));
 
+    // ==========================================
+    // EXPLICIT INSTRUCTION: USE GEMINI 3.5 FLASH
+    // ==========================================
     const url = "https://googleapis.com";
 
     const r = await fetch(`${url}?key=${process.env.GEMINI_API_KEY.trim()}`, {
@@ -37,10 +40,14 @@ export default async function handler(req, res) {
     
     const d = await r.json();
     
-    if (d && d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts && d.candidates[0].content.parts[0]) {
-      return res.status(200).json({ reply: d.candidates[0].content.parts[0].text.trim() });
+    const candidate = d?.candidates?.[0];
+    const part = candidate?.content?.parts?.[0];
+    const text = part?.text;
+    
+    if (text) {
+      return res.status(200).json({ reply: text.trim() });
     }
-  } catch (e) { /* pipeline catch */ }
+  } catch (e) { /* catch logic */ }
 
-  res.status(502).json({ error: "Upstream Gemini pipeline error" });
+  res.status(502).json({ error: "Upstream connection error encountered using Gemini 3.5 Flash." });
 }

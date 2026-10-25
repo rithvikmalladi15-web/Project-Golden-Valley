@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   }
 
   if (!process.env.GEMINI_API_KEY) {
-    return res.status(500).json({ reply: "Gemini Key is missing in Vercel settings." });
+    return res.status(500).json({ reply: "GEMINI_API_KEY variable is missing in Vercel." });
   }
 
   const SYSTEM = `You are an expert lookup assistant for California's Central Valley farm communities. 
@@ -24,6 +24,9 @@ export default async function handler(req, res) {
   Keep it to 2-3 sentences. Do not use markdown.`;
 
   try {
+    // ==========================================
+    // EXPLICIT INSTRUCTION: USE GEMINI 3.5 FLASH
+    // ==========================================
     const url = "https://googleapis.com";
     
     const r = await fetch(`${url}?key=${process.env.GEMINI_API_KEY.trim()}`, {
@@ -44,14 +47,16 @@ export default async function handler(req, res) {
     
     const d = await r.json();
     
-    // Explicit array bracket index matching
-    if (d && d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts && d.candidates[0].content.parts[0]) {
-      const text = d.candidates[0].content.parts[0].text;
+    const candidate = d?.candidates?.[0];
+    const part = candidate?.content?.parts?.[0];
+    const text = part?.text;
+    
+    if (text) {
       return res.status(200).json({ reply: text.trim() });
     }
     
-    return res.status(200).json({ reply: "No valid responses returned from Gemini array." });
+    return res.status(200).json({ reply: "Gemini 3.5 Flash processed the request but returned no text parts." });
   } catch (e) {
-    return res.status(502).json({ reply: "Server error caught during Gemini query fetch." });
+    return res.status(502).json({ reply: "Server exception caught while calling Gemini 3.5 Flash." });
   }
 }

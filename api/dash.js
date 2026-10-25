@@ -13,7 +13,6 @@ export default async function handler(req, res) {
   if (!msgs.length || msgs[msgs.length - 1].role !== "user") return res.status(400).json({ error: "Bad request" });
 
   try {
-    // Format conversation history correctly into Gemini content structure
     const formattedContents = msgs.map(m => ({
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }]
@@ -21,10 +20,9 @@ export default async function handler(req, res) {
 
     const url = "https://googleapis.com";
 
-    const r = await fetch(url, {
+    const r = await fetch(`${url}?key=${process.env.GEMINI_API_KEY.trim()}`, {
       method: "POST",
       headers: { 
-        "x-goog-api-key": process.env.GEMINI_API_KEY.trim(), 
         "Content-Type": "application/json" 
       },
       body: JSON.stringify({ 
@@ -39,10 +37,10 @@ export default async function handler(req, res) {
     
     const d = await r.json();
     
-    if (d && d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts[0]) {
+    if (d && d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts && d.candidates[0].content.parts[0]) {
       return res.status(200).json({ reply: d.candidates[0].content.parts[0].text.trim() });
     }
-  } catch (e) { /* pipeline error handling */ }
+  } catch (e) { /* pipeline catch */ }
 
   res.status(502).json({ error: "Upstream Gemini pipeline error" });
 }

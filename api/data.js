@@ -14,8 +14,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ reply: "" });
   }
 
-  if (!process.env.GROQ_API_KEY) {
-    return res.status(500).json({ error: "Not configured" });
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: "Gemini Key Not configured" });
   }
 
   const SYSTEM = `You are an expert lookup assistant for California's Central Valley farm communities. 
@@ -24,32 +24,35 @@ export default async function handler(req, res) {
   Keep it to 2-3 sentences. Do not use markdown.`;
 
   try {
-    const r = await fetch("https://groq.com", {
+    // Standard Google AI Studio endpoint syntax
+    const url = "https://googleapis.com";
+    
+    const r = await fetch(url, {
       method: "POST",
       headers: { 
-        "Authorization": "Bearer " + process.env.GROQ_API_KEY.trim(), 
+        "x-goog-api-key": process.env.GEMINI_API_KEY.trim(), 
         "Content-Type": "application/json" 
       },
       body: JSON.stringify({ 
-        model: "llama-3.1-8b-instant", 
-        temperature: 0.3, 
-        max_tokens: 300, 
-        messages: [
-          { role: "system", content: SYSTEM }, 
-          { role: "user", content: query }
-        ] 
+        contents: [
+          { role: "user", parts: [{ text: SYSTEM + "\n\nUser Question: " + query }] }
+        ],
+        generationConfig: {
+          temperature: 0.3, 
+          maxOutputTokens: 300
+        }
       }),
     });
     
     const d = await r.json();
     
-    // Completely safe layout evaluation
-    if (d && d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content) {
-      return res.status(200).json({ reply: d.choices[0].message.content.trim() });
+    if (d && d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts[0]) {
+      const text = d.candidates[0].content.parts[0].text;
+      return res.status(200).json({ reply: text.trim() });
     }
     
-    return res.status(200).json({ reply: "No valid choice arrays returned from Groq." });
+    return res.status(200).json({ reply: "No valid responses returned from Gemini." });
   } catch (e) {
-    return res.status(502).json({ reply: "Server catch block intercepted a failure." });
+    return res.status(502).json({ reply: "Server error during Gemini AI lookup." });
   }
 }
